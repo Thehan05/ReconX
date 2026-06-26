@@ -1,17 +1,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
 
+// print a packed IPv4 address as dotted decimal  eg. 3232235776 -> "192.168.1.0" 
 void print_ip(uint32_t addr){
     printf("%u.%u.%u.%u\n", (addr >> 24) & 0xFF, (addr >> 16) & 0xFF, (addr >> 8) & 0xFF, (addr) & 0xFF);
 }
 
 int main(int argc, char **argv) {
+    
     if(argc < 2) {
         printf("Usage: %s <CIDR>\n", argv[0]);
         return 1;
     }
-
+    
     int octet1, octet2, octet3, octet4, prefix_length;
     int n = sscanf(argv[1], "%d.%d.%d.%d/%d", &octet1, &octet2, &octet3, &octet4, &prefix_length);
     if(n != 5) {
@@ -29,6 +33,29 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    WSADATA wsa;
+    int result = WSAStartup(MAKEWORD(2,2), &wsa);
+
+    if (result != 0) {                              
+        printf("WSAStartup failed: %d\n", result);
+        return 1;
+    }
+    printf("Winsock ready\n");
+    
+    
+    struct sockaddr_in target;
+    target.sin_family = AF_INET;
+    target.sin_addr.s_addr = inet_addr("127.0.0.1");
+    for(int port = 130; port <= 140; port++) {
+        SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
+        if(s == INVALID_SOCKET) continue;
+        target.sin_port = htons(port);
+        if(connect(s, (struct sockaddr*)&target, sizeof(target)) == 0) {
+        printf("Port %d : OPEN\n", port); 
+        }
+        closesocket(s);
+    }
+    
     uint32_t ip = ((uint32_t)octet1 << 24) | ((uint32_t)octet2 << 16) | ((uint32_t)octet3 << 8) | (uint32_t)octet4;
     uint32_t mask = 0;
     if(prefix_length != 0) {
@@ -52,10 +79,10 @@ int main(int argc, char **argv) {
 
     uint32_t host = first_host;
     while(1) {
-        print_ip(host);
         if(host == last_host) break;
         host++;
     }
+    WSACleanup();
     return 0;
 }
 
