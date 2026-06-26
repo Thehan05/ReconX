@@ -46,29 +46,6 @@ int main(int argc, char **argv) {
     int num_ports = sizeof(top_ports) / sizeof(top_ports[0]);
     struct sockaddr_in target;
     target.sin_family = AF_INET;
-    target.sin_addr.s_addr = inet_addr("127.0.0.1");
-    for(int i = 0; i < num_ports; i++) {
-        int port = top_ports[i];
-        SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
-        if(s == INVALID_SOCKET) continue;
-        u_long mode = 1;
-        ioctlsocket(s, FIONBIO, &mode);
-        target.sin_port = htons(port);
-        connect(s, (struct sockaddr*)&target, sizeof(target)); 
-
-        fd_set writefds, exceptfds;
-        FD_ZERO(&writefds);   FD_SET(s, &writefds);
-        FD_ZERO(&exceptfds);  FD_SET(s, &exceptfds);
-
-        struct timeval tv;
-        tv.tv_sec = 1;
-        tv.tv_usec = 0;
-        select(0, NULL, &writefds, &exceptfds, &tv);
-        if (FD_ISSET(s, &writefds)) {           
-            printf("Port %d : OPEN\n", port);
-        }
-        closesocket(s);
-    }
     
     uint32_t ip = ((uint32_t)octet1 << 24) | ((uint32_t)octet2 << 16) | ((uint32_t)octet3 << 8) | (uint32_t)octet4;
     uint32_t mask = 0;
@@ -94,6 +71,30 @@ int main(int argc, char **argv) {
     uint32_t host = first_host;
     while(1) {
         print_ip(host);   
+        target.sin_addr.s_addr = htonl(host);
+        for(int i = 0; i < num_ports; i++) {
+            int port = top_ports[i];
+            SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
+            if(s == INVALID_SOCKET) continue;
+            u_long mode = 1;
+            ioctlsocket(s, FIONBIO, &mode);
+            target.sin_port = htons(port);
+            connect(s, (struct sockaddr*)&target, sizeof(target)); 
+
+            fd_set writefds, exceptfds;
+            FD_ZERO(&writefds);   FD_SET(s, &writefds);
+            FD_ZERO(&exceptfds);  FD_SET(s, &exceptfds);
+
+            struct timeval tv;
+            tv.tv_sec = 1;
+            tv.tv_usec = 0;
+            select(0, NULL, &writefds, &exceptfds, &tv);
+            if (FD_ISSET(s, &writefds)) {           
+                printf("Port %d : OPEN\n", port);
+            }
+            closesocket(s);
+        }
+        
         if(host == last_host) break;
         host++;
     }
